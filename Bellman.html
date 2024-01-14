@@ -1,48 +1,66 @@
+<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
   <title>Bellman-Ford Visualizer</title>
-  <style>
+  <style >
     body {
-      font-family: Arial, sans-serif;
-      text-align: center;
-    }
+    font-family: Arial, sans-serif;
+    text-align: center;
+  }
 
-    .container {
-      display: flex;
-      flex-direction: row;
-      justify-content: flex-end;
-      align-items: flex-start;
-      margin-top: 20px;
-    }
+  .container {
+    display: flex;
+    flex-direction: row;
+    justify-content: center;
+    align-items: flex-start;
+    margin-top: 20px;
+  }
 
-    canvas {
-      border: 1px solid #ccc;
-      background-color: #fafafa;
-    }
+  canvas {
+    border: 1px solid #ccc;
+    background-color: #fafafa;
+  }
 
-    .control-panel {
-      margin-top: 20px;
-      display: flex;
-      flex-direction: column;
-      align-items: flex-end;
-      gap: 10px;
-    }
+  .control-panel {
+    margin-left: 20px;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+  }
 
-    .control-panel button {
-      padding: 8px 16px;
-      font-size: 16px;
-      cursor: pointer;
-    }
+  .control-panel button {
+    padding: 8px 16px;
+    font-size: 16px;
+    cursor: pointer;
+  }
 
-    .info {
-      margin-top: 20px;
-      font-size: 16px;
-      text-align: right;
-    }
+  .user-input {
+    margin-bottom: 20px;
+  }
+
+  .user-input input, .user-input button {
+    padding: 8px;
+    margin-right: 4px;
+  }
+
+  .info {
+    margin-top: 20px;
+    font-size: 16px;
+  }
   </style>
 </head>
 <body>
+  <div class="user-input">
+    <input id="numVertices" type="number" min="1" placeholder="Number of Vertices">
+    <button id="generateGraph">Generate Graph</button>
+    <input id="sourceNode" type="number" min="0" placeholder="Source Node">
+    <input id="destNode" type="number" min="0" placeholder="Destination Node">
+    <input id="edgeWeight" type="number" placeholder="Weight">
+    <button id="addEdge">Add Edge</button>
+  </div>
+
   <div class="container">
     <canvas id="canvas" width="800" height="600"></canvas>
     <div class="control-panel">
@@ -55,166 +73,8 @@
       </div>
     </div>
   </div>
-  <script>
-    const canvas = document.getElementById('canvas');
-    const ctx = canvas.getContext('2d');
-    const runButton = document.getElementById('runAlgorithm');
-    const resetButton = document.getElementById('resetGraph');
-    const showPathsButton = document.getElementById('showShortestPaths');
-    const passesLeftSpan = document.getElementById('passesLeft');
-    const shortestPathsSpan = document.getElementById('shortestPaths');
 
-    ctx.font = 'bold 16px Arial';
-
-
-    const V = 6; // Number of vertices
-    const edges = [
-  { src: 0, dest: 1, weight: -1 },
-  { src: 0, dest: 2, weight: 4 },
-  { src: 1, dest: 2, weight: 3 },
-  { src: 1, dest: 3, weight: 2 },
-  { src: 1, dest: 4, weight: 2 },
-  { src: 3, dest: 2, weight: 5 },
-  { src: 3, dest: 1, weight: 1 },
-  { src: 4, dest: 3, weight: -3 },
-  { src: 1, dest: 2, weight: -2 },
-  { src: 4, dest: 5, weight: 1 },  // New edge from node 4 to 5
-  { src: 5, dest: 3, weight: 2 }// New edge from node 5 to 3
-  // Add more edges as needed
-];
-
-const positions = [
-      { x: 400, y: 100 },
-      { x: 700, y: 200 },
-      { x: 600, y: 500 },
-      { x: 200, y: 500 },
-      { x: 100, y: 200 },
-      { x: 140, y: 100 },
-      { x: 140, y: 100 }
-
-    ];
-
-    let iteration = 0;
-    let edgeIndex = 0;
-    let distances = Array(V).fill(Infinity);
-    distances[0] = 0; // Assuming vertex 0 is the source
-
-    // ... [Your functions for drawing and other operations] ...
-    
-function drawArrow(fromx, fromy, tox, toy, arrowWidth = 5, color = 'black') {
-    const headlen = 15; // Adjusted length of head in pixels for better visibility
-    ctx.fillStyle = color;
-    ctx.strokeStyle = color;
-
-    // Adjust tox and toy to stop before the vertex circle
-    const vertexRadius = 20; // Radius of the vertex circle
-    let angle = Math.atan2(toy - fromy, tox - fromx);
-
-    // Calculate the new endpoint of the arrow just before the vertex circle
-    tox = tox - vertexRadius * Math.cos(angle);
-    toy = toy - vertexRadius * Math.sin(angle);
-
-    // Draw the line of the arrow
-    ctx.beginPath();
-    ctx.moveTo(fromx, fromy);
-    ctx.lineTo(tox, toy);
-    ctx.stroke();
-
-    // Drawing arrow heads
-    ctx.beginPath();
-    ctx.moveTo(tox, toy);
-    ctx.lineTo(tox - headlen * Math.cos(angle - Math.PI / 7), toy - headlen * Math.sin(angle - Math.PI / 7));
-    ctx.lineTo(tox - headlen * Math.cos(angle + Math.PI / 7), toy - headlen * Math.sin(angle + Math.PI / 7));
-    ctx.lineTo(tox, toy);
-    ctx.lineTo(tox - headlen * Math.cos(angle - Math.PI / 7), toy - headlen * Math.sin(angle - Math.PI / 7));
-    ctx.fill();
-}
-
-
-function drawGraph(currentEdgeIndex = null) {
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-    // Draw arrows
-    edges.forEach((edge, index) => {
-        let color = 'black'; // Default color
-        if (index === currentEdgeIndex) {
-            color = 'Blue'; // Color when the edge is being processed
-        }
-        let startX = positions[edge.src].x;
-        let startY = positions[edge.src].y;
-        let endX = positions[edge.dest].x;
-        let endY = positions[edge.dest].y;
-        drawArrow(startX, startY, endX, endY, 1, color);
-        ctx.fillText(edge.weight, (startX + endX) / 2, (startY + endY) / 2 - 20);
-    });
-
-    // Draw vertices
-    for (let i = 0; i < V; i++) {
-        ctx.beginPath();
-        ctx.arc(positions[i].x, positions[i].y, 20, 0, 2 * Math.PI);
-        ctx.fillStyle = distances[i] < Infinity ? 'green' : 'red';
-        ctx.fill();
-        ctx.strokeStyle = 'black';
-        ctx.stroke();
-        ctx.fillStyle = 'white';
-        ctx.fillText(i, positions[i].x - 5, positions[i].y + 5);
-        ctx.fillStyle = 'Red';
-        ctx.fillText(`Dist: ${distances[i]}`, positions[i].x - 30, positions[i].y + 40);
-    }
-}
-
-    function updatePassesLeft() {
-      passesLeftSpan.textContent = V - 1 - iteration;
-    }
-
-    function updateInfo() {
-      updatePassesLeft();
-      if (iteration >= V - 1) {
-        shortestPathsSpan.textContent = distances.map(d => d === Infinity ? "Infinity" : d).join(', ');
-      }
-    }
-
-    function bellmanFordStep() {
-      if (iteration < V - 1) {
-        const edge = edges[edgeIndex];
-        if (distances[edge.src] !== Infinity && distances[edge.src] + edge.weight < distances[edge.dest]) {
-          distances[edge.dest] = distances[edge.src] + edge.weight;
-        }
-        drawGraph(edgeIndex);
-        edgeIndex++;
-        if (edgeIndex >= edges.length) {
-          edgeIndex = 0;
-          iteration++;
-        }
-      } else {
-        alert("Algorithm has finished running!");
-      }
-      updateInfo();
-    }
-
-    runButton.addEventListener('click', bellmanFordStep);
-    resetButton.addEventListener('click', resetGraph);
-
-    function resetGraph() {
-      iteration = 0;
-      edgeIndex = 0;
-      distances = Array(V).fill(Infinity);
-      distances[0] = 0;
-      drawGraph();
-      updateInfo();
-    }
-
-    showPathsButton.addEventListener('click', () => {
-      if (iteration < V - 1) {
-        alert("Finish running the algorithm to view shortest paths!");
-      } else {
-        shortestPathsSpan.textContent = distances.map(d => d === Infinity ? "Infinity" : d).join(', ');
-      }
-    });
-
-    // Initialize Graph
-    drawGraph();
-    updateInfo();
-  </script>
+  <script src="script.js">
+     </script>
 </body>
 </html>
